@@ -53,32 +53,33 @@ and more like this:
 ```pikchr
 scale = 0.9
 
-H: box "Human" bold width 1.4 height 0.7
+E: box "Explore" width 1.3 height 0.5
+D: box "Design"  width 1.3 height 0.5 at E - (0,0.92)
+B: box "Build"   width 1.3 height 0.5 at D - (0,0.92)
+T: box "Test"    width 1.3 height 0.5 at B - (0,0.92)
+R: box "Review"  width 1.3 height 0.5 at T - (0,0.92)
 
-E: box "Explore" at H + (2.2,0)
-D: box "Design"  at E + (1.8,0)
-B: box "Build"   at D + (1.8,0)
-T: box "Test"    at B + (1.8,0)
-R: box "Review"  at T + (1.8,0)
+arrow from E.s to D.n
+arrow from D.s to B.n
+arrow from B.s to T.n
+arrow from T.s to R.n
 
-arrow from H.e to E.w
-arrow from E.e to D.w
-arrow from D.e to B.w
-arrow from B.e to T.w
-arrow from T.e to R.w
+H:  box "Human" bold width 1.3 height 0.5 at E + (0,1.32)
+AI: box "AI"         width 1.3 height 0.5 at B + (2.6,0)
 
-AI: box "AI" at B + (0,-1.5)
+arrow from H.s to E.n
 
-arrow from AI.n to E.s
-arrow from AI.n to D.s
-arrow from AI.n to B.s
-arrow from AI.n to T.s
-arrow from AI.n to R.s
+arrow from AI.w to E.e
+arrow from AI.w to D.e
+arrow from AI.w to B.e
+arrow from AI.w to T.e
+arrow from AI.w to R.e
 
-arrow from H.s to AI.w
+arrow from H.e right 1.95 then to AI.n
+arrow from R.w left 1.25 then up 3.7 then to E.w
 
-text "asks, checks, rejects, decides" at H + (0,0.65)
-text "proposes, explains, generates, critiques" at AI + (2.8,-0.05)
+text "asks, checks, rejects, decides" at H + (0,0.6)
+text "proposes, explains," "generates, critiques" at AI + (0,-0.8)
 ```
 
 The important part is the loop.
