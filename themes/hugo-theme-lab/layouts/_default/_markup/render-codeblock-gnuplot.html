@@ -1,0 +1,10 @@
+{{- /* Inlines the SVG that scripts/render-diagrams.mjs pre-rendered for this fence. */ -}}
+{{- $svg := resources.Get (printf "diagrams/gnuplot/%s.svg" (sha256 .Inner)) -}}
+{{- with $svg -}}
+<figure class="diagram diagram-gnuplot"{{ with $.Attributes.alt }} role="img" aria-label="{{ . }}"{{ end }}>
+{{ .Content | safeHTML }}
+{{- with $.Attributes.caption }}<figcaption>{{ . | safeHTML }}</figcaption>{{ end }}
+</figure>
+{{- else -}}
+{{- errorf "gnuplot fence in %q was not pre-rendered. Run: node themes/hugo-theme-lab/scripts/render-diagrams.mjs" $.Page.File.Path -}}
+{{- end -}}

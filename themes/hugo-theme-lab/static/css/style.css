@@ -1,0 +1,57 @@
+:root{--bg:#f5f1ea;--fg:#1c1a16;--muted:#6f695d;--line:#ddd6c8;--code-bg:#ebe5d9;--code-fg:#2a2620;--accent:#b45309}
+[data-theme=dark]{--bg:#15130f;--fg:#ece6da;--muted:#9a927f;--line:#2c2822;--code-bg:#1f1c16;--code-fg:#e6dfd1}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Source Serif 4',Georgia,serif;font-size:17px;line-height:1.65;transition:background .2s,color .2s}
+a{color:inherit;text-decoration:none}
+a:hover{color:var(--accent)}
+.wrap{max-width:680px;margin:0 auto;padding:40px 24px 80px}
+.mono,.meta,time,.brand,nav,.site-footer,figcaption.small{font-family:'JetBrains Mono',monospace}
+.site-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.brand{font-size:14px;font-weight:500;letter-spacing:.02em}
+.accent{color:var(--accent)}
+.site-header nav{display:flex;align-items:center;gap:22px;font-size:13px}
+.site-header nav a{color:var(--muted)}
+.site-header nav a.active,.site-header nav a:hover{color:var(--fg)}
+#theme-toggle{border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:999px;width:32px;height:32px;cursor:pointer;font:12px 'JetBrains Mono',monospace;display:grid;place-items:center}
+#theme-toggle .sun{display:none}
+[data-theme=dark] #theme-toggle .sun{display:inline}
+[data-theme=dark] #theme-toggle .moon{display:none}
+.tagline{margin:44px 0 40px;font-size:20px;color:var(--muted);max-width:520px;text-wrap:pretty}
+.post-item{display:grid;grid-template-columns:96px minmax(0,1fr);gap:20px;padding:22px 0;border-top:1px solid var(--line)}
+.post-item time{font-size:12px;color:var(--muted);padding-top:5px}
+.post-item h2{margin:0 0 6px;font-size:22px;font-weight:600;line-height:1.3}
+.post-item p{margin:0 0 8px;color:var(--muted);text-wrap:pretty}
+.meta{font-size:12px;color:var(--muted)}
+.rule{border-top:1px solid var(--line)}
+main h1{margin:44px 0 28px;font-size:40px;line-height:1.15;font-weight:600;letter-spacing:-.01em;text-wrap:pretty}
+.post .meta{margin:44px 0 12px;display:flex;gap:14px}
+.post .meta+h1{margin-top:0}
+.cover{margin:0 0 36px}
+.cover img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:4px;display:block}
+.cover figcaption{margin-top:10px;font-size:14px;color:var(--muted)}
+.content p,.content ul,.content ol{margin:0 0 22px;text-wrap:pretty}
+.content h2{margin:40px 0 14px;font-size:26px;font-weight:600;line-height:1.25}
+.content h3{margin:32px 0 12px;font-size:21px;font-weight:600}
+.content a{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.content code{font-family:'JetBrains Mono',monospace;font-size:14.5px;background:var(--code-bg);padding:2px 6px;border-radius:4px}
+.content pre{margin:0 0 22px;padding:18px 20px;border-radius:6px;background:var(--code-bg);color:var(--code-fg);font-size:13.5px;line-height:1.6;overflow-x:auto;border:1px solid var(--line)}
+.content pre code{background:none;padding:0;font-size:inherit}
+.content blockquote{margin:0 0 22px;padding:4px 0 4px 20px;border-left:2px solid var(--accent);color:var(--muted);font-style:italic}
+.content img{max-width:100%;border-radius:4px}
+.content hr{border:0;border-top:1px solid var(--line);margin:36px 0}
+.content table{border-collapse:collapse;width:100%;margin:0 0 22px;font-size:15px}
+.content th,.content td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.post-nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:56px;padding-top:24px;border-top:1px solid var(--line)}
+.post-nav a{display:block}
+.post-nav a.right{text-align:right}
+.post-nav .meta{display:block;margin:0 0 6px}
+.post-nav .t{display:block;font-weight:600;line-height:1.35}
+.site-footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.site-footer a{color:var(--muted)}
+@media (max-width:520px){.post-item{grid-template-columns:1fr;gap:6px}main h1{font-size:32px}}
+.diagram{margin:0 0 26px;padding:0;text-align:center}
+.diagram svg{max-width:100%;height:auto;border-radius:6px;background:#fff}
+.diagram-pikchr svg{padding:14px 10px;border:1px solid var(--line)}
+.diagram figcaption{margin-top:10px;font-size:14px;color:var(--muted);text-wrap:pretty}
+[data-theme=dark] .diagram svg{filter:invert(1) hue-rotate(180deg);background:#fff}

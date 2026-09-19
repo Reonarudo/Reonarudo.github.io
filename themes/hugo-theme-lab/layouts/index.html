@@ -1,0 +1,15 @@
+{{ define "main" }}
+{{ with .Site.Params.tagline }}<p class="tagline">{{ . }}</p>{{ end }}
+{{ $pages := where .Site.RegularPages "Section" "posts" }}
+{{ range $pages }}
+<article class="post-item">
+  <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+  <div>
+    <h2><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+    {{ with .Params.summary | default .Summary }}<p>{{ . }}</p>{{ end }}
+    <span class="meta">{{ .ReadingTime }} min read</span>
+  </div>
+</article>
+{{ end }}
+<div class="rule"></div>
+{{ end }}

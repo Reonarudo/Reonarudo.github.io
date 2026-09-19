@@ -1,0 +1,14 @@
+{{ define "main" }}
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+{{ range .Pages }}
+<article class="post-item">
+  <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+  <div>
+    <h2><a href="{{ .RelPermalink }}">{{ .Title }}</a></h2>
+    {{ with .Params.summary | default .Summary }}<p>{{ . }}</p>{{ end }}
+    <span class="meta">{{ .ReadingTime }} min read</span>
+  </div>
+</article>
+{{ end }}
+{{ end }}

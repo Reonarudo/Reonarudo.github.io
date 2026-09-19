@@ -1,0 +1,7 @@
+<header class="site-header">
+  <a class="brand" href="{{ "/" | relURL }}">{{ .Site.Title }}<span class="accent">_</span></a>
+  <nav>
+    {{ range .Site.Menus.main }}<a href="{{ .URL | relURL }}"{{ if $.IsMenuCurrent "main" . }} class="active"{{ end }}>{{ .Name }}</a>{{ end }}
+    <button id="theme-toggle" aria-label="Toggle theme"><span class="sun">☼</span><span class="moon">☾</span></button>
+  </nav>
+</header>

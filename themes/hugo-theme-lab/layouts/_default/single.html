@@ -1,0 +1,19 @@
+{{ define "main" }}
+<article class="post">
+  {{ if .Date }}<div class="meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time><span>·</span><span>{{ .ReadingTime }} min read</span></div>{{ end }}
+  <h1>{{ .Title }}</h1>
+  {{ with .Params.cover.image }}
+  <figure class="cover">
+    <img src="{{ . | relURL }}" alt="{{ $.Params.cover.alt | default $.Title }}">
+    {{ with $.Params.cover.caption }}<figcaption>{{ . }}</figcaption>{{ end }}
+  </figure>
+  {{ end }}
+  <div class="content">{{ .Content }}</div>
+  {{ if eq .Section "posts" }}
+  <nav class="post-nav">
+    {{ with .PrevInSection }}<a href="{{ .RelPermalink }}"><span class="meta">← older</span><span class="t">{{ .Title }}</span></a>{{ else }}<span></span>{{ end }}
+    {{ with .NextInSection }}<a class="right" href="{{ .RelPermalink }}"><span class="meta">newer →</span><span class="t">{{ .Title }}</span></a>{{ end }}
+  </nav>
+  {{ end }}
+</article>
+{{ end }}

@@ -1,0 +1,4 @@
+name = "Lab"
+license = "MIT"
+description = "Minimal text-first blog theme with light/dark toggle"
+min_version = "0.110.0"

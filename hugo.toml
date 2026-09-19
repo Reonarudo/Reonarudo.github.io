@@ -1,0 +1,28 @@
+baseURL = "https://reonarudo.github.io/"
+locale = "en"
+title = "Leonardo Marques"
+theme = "hugo-theme-lab"
+
+[params]
+  description = "Notes on software, hardware, and experiments."
+  tagline = "Notes on software, hardware, and experiments that mostly worked."
+
+[markup.highlight]
+  noClasses = false
+  style = "monokai"
+[markup.goldmark.renderer]
+  unsafe = true
+
+[menu]
+  [[menu.main]]
+    name = "posts"
+    url = "/"
+    weight = 1
+  [[menu.main]]
+    name = "about"
+    url = "/about/"
+    weight = 2
+  [[menu.main]]
+    name = "github"
+    url = "https://github.com/Reonarudo"
+    weight = 3

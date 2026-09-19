@@ -1,0 +1,57 @@
+# Copy this file to your SITE repo at .github/workflows/hugo.yml
+name: Deploy Hugo site to GitHub Pages
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+env:
+  PIKCHR_REF: fix/delegate-non-pikchr-fences
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+
+      # gnuplot renders the `gnuplot` fences. The VS Code preview uses gnuplot 6.0.2
+      # compiled to wasm; ubuntu-latest ships 6.0.x, so output matches closely.
+      - name: Install gnuplot
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gnuplot-nox
+
+      # pikchr is a single C file, built from the same source the VS Code extension
+      # compiles to wasm, so the site and the preview agree on syntax.
+      - name: Build pikchr
+        run: |
+          curl -fsSL -o /tmp/pikchr.c \
+            "https://raw.githubusercontent.com/Reonarudo/pikchr-markdown-preview-upstream/${PIKCHR_REF}/pikchr.c"
+          cc -O2 -DPIKCHR_SHELL -o /usr/local/bin/pikchr /tmp/pikchr.c -lm
+          pikchr --version || true
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Pre-render diagram fences
+        run: node themes/hugo-theme-lab/scripts/render-diagrams.mjs --content content --out assets/diagrams
+
+      - uses: peaceiris/actions-hugo@v3
+        with: { hugo-version: '0.166.0', extended: true }
+      - uses: actions/configure-pages@v5
+        id: pages
+      - run: hugo --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: ./public }
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
