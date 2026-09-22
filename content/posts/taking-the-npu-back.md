@@ -2,16 +2,16 @@
 title: "Taking the NPU back: a tinygrad backend for the Zhouyi X2"
 date: 2026-09-22T11:08:18+02:00
 draft: true
-summary: "The vendor toolchain wanted an x86 machine and quietly quantised my model on its own terms. So I wrote a tinygrad backend that drives the convolution engine directly, from the board, with no vendor runtime in the loop."
+summary: "The vendor toolchain wanted an x86 machine and quantised my model according to choices I could not see. So I wrote a tinygrad backend that drives the convolution engine directly, from the board, with no vendor runtime in the loop."
 ---
 
 The CIX P1 (CD8180 / CD8160) has a "Zhouyi" (周易) X2 NPU on it, and the first thing that
-frustrated me was that I needed an x86 machine to use it. The vendor's toolchain compiles a
+frustrated me was that I needed an x86 machine to compile for it. The vendor's toolchain compiles a
 model into a `.cix` file on an x86_64 Linux host, and the board only ever sees that file.
 Then came the second frustration: everything in that compile happens in a very opaque way,
 and by the time I understood it I realised I had been relinquishing a lot of control over
-what was being done to my model — it was quantising it, on its own terms, and losing quality
-doing so.
+what was being done to my model — it was quantising it according to choices I could not see,
+let alone override.
 
 So my solution was to bypass most of it. I started adding a new backend to tinygrad, and so
 far I've got a float path running on the vector cores, the fixed-function convolution engine
@@ -22,9 +22,10 @@ took, and what it bought me.
 ## The workflow I was supposed to follow
 
 Here's the pipeline the vendor expects. The whole left half runs on an x86_64 Linux machine
-with the Compass MiniPkg installed; the board only gets the artefact at the end.
+with the vendor's Compass MiniPkg toolchain installed; the board only gets the artefact at
+the end, where a user-mode runtime (NOE) hands it to the kernel driver.
 
-```pikchr {alt="The vendor pipeline: trained model, parser, optimizer, GBuilder and .cix on an x86_64 host, handed to the NOE runtime, kernel driver and Zhouyi X2 on the board" caption="The vendor flow. Every interesting decision happens on the host, in the two middle boxes."}
+```pikchr {alt="The vendor pipeline: trained model, parser, optimizer, GBuilder and .cix on an x86_64 host, handed to the NOE runtime, kernel driver and Zhouyi X2 on the board" caption="The vendor flow. Every interesting decision happens on the host, inside the Optimizer and GBuilder."}
 scale = 0.9
 boxwid = 2.3
 boxht = 0.62
@@ -56,10 +57,10 @@ text "x86_64 Linux host" "Compass MiniPkg" with .s at HB.n + (0,0.1) color gray
 text "aarch64 board" "CIX P1"              with .s at BB.n + (0,0.1) color gray
 ```
 
-Every interesting decision lives inside the two middle boxes. The Optimizer decides how your
+Every interesting decision lives inside the Optimizer and GBuilder. The Optimizer decides how your
 model is quantised — which calibration method, what granularity, what it does to layers it
 doesn't like. GBuilder decides how each layer is tiled across the engine and scheduled. The
-config file for the zoo's ResNet-50 says things like `tiling = fps` and "adaround global
+config file for the vendor model zoo's ResNet-50 says things like `tiling = fps` and "adaround global
 calibration", and that's about all you get to know. The output is a `.cix` and a latency
 number. If the accuracy dropped, you can turn knobs in a config and rebuild; you cannot see
 what the compiler actually emitted, and you cannot make it emit something else.
@@ -86,8 +87,8 @@ kernel on the CPU instead, marked, inside the same computation — I'd rather ha
 answer and a note than a silently narrowed one.
 
 **The fixed-function engine (AIFF).** This is where the NPU's throughput actually lives: a
-convolution engine you program by writing a chain of descriptors — register images — and
-pointing the core at them. There is no compiler for it that you're allowed to see; the vendor's
+convolution engine you program by writing a chain of descriptors — register images, linked
+into what the hardware calls a TCB chain — and pointing the core at them. There is no compiler for it that you're allowed to see; the vendor's
 GBuilder emits those descriptors from the `.cix` flow and never shows them to you. So I wrote a
 descriptor generator from the register-level documentation and then spent weeks finding out
 which parts of the documentation were true.
@@ -106,7 +107,8 @@ it took:
 - **Register fields named by running them.** The kernel-size field is literal (a 3×3 writes 3);
   the "weight size" field is the tap count; the step fields count *input* rows, not output rows;
   a single-step kernel's step must span the whole input height or the job faults at stride 2 on
-  even planes. Each of those cost an arm that faulted before it was known.
+  even planes. Each of those I learned the same way: a probe that set the field the obvious
+  way, and a job that faulted.
 - **A tiling law that wasn't what it looked like.** Over-sized tiles don't fault — they return
   DONE with a quarter of the output wrong, which the network's top-1 happily tolerates. I first
   modelled the limit as an accumulator byte budget that "shrinks with input channels because
@@ -123,7 +125,17 @@ it took:
   one job per tile removed most of the per-job overhead — and was byte-exact at stride 1 at
   every band count, while stride-2 chaining was wrong at every band size. The first time I
   measured it I thought it was a different bug entirely; I had mis-decoded a tensor size. The
-  gate caught it, not me.
+  byte-exact check caught it, not me.
+
+- **The one convolution that gets neither optimisation.** The 7×7 stride-2 stem runs
+  natively, because its input is only 32 channels wide and that is the one place the stride-2
+  bug doesn't bite. But chaining is out — stride-2 chained bands are wrong at every band size,
+  and one band size hung the device outright — so it takes the square-tile path. The 7×7
+  accumulator ceiling at 32 input channels allows a tile of 18, the budget picks 16, and a
+  112×112 output becomes 7×7 = 49 tiles: **49 jobs for one convolution**, roughly half the
+  network's AIFF jobs. Each of those tiles also copies its input window to a contiguous buffer,
+  because a width-window of a surface isn't contiguous and the descriptor generator has no
+  input row-stride field yet. It is a good measure of what an un-optimised corner costs.
 
 Every one of these ended as a number in a manifest with its provenance — measured, derived,
 inferred, or assumed — and a test that fails if code and manifest disagree. The engine's
@@ -131,28 +143,46 @@ behaviour is data now, not folklore.
 
 ## Where it stands
 
-The reference points, all on the same board and driver:
+The reference points, all on the same board and driver. My numbers come from a run with
+`DEBUG=2`, which synchronises every launch — so they are device **plus dispatch** time, not
+pure hardware occupancy.
 
-| ResNet-50 int8, one image | |
-|---|---:|
-| vendor `.cix` via the vendor runtime, three cores | 1.7 ms |
-| vendor `.cix`, pinned to one core | 2.4 ms |
-| my path, engine time (53 convolutions, 101 jobs) | ~12 ms |
-| my path, wall clock through tinygrad, warm | 1.63 s |
+| ResNet-50 int8, one warm image | launches | time |
+|---|---:|---:|
+| vendor `.cix` via the vendor runtime, three cores | | 1.7 ms |
+| vendor `.cix`, pinned to one core | | 2.4 ms |
+| mine — TPC elementwise: residual rescale/add, pooling | 40 | 82.6 ms |
+| mine — AIFF convolution op | 53 | 31.6 ms |
+| mine — copy / reduce | 4 | 0.5 ms |
+| **mine — total device + dispatch** | **97** | **114.7 ms** |
+| mine — wall clock through tinygrad, warm | | 1.70 s |
 
-Two things to be honest about. The engine time is a real hardware number and it is still far
-from the vendor's — I know now where the gap goes (a per-job configuration floor, and the
-remaining elementwise kernels on the vector cores being surprisingly slow), which is a different
-situation from not knowing. And the wall clock is dominated by host-side Python, not the NPU;
-the JIT graph that fixes that exists for the vector path and isn't wired to the engine op yet.
+Four honest things fall out of that table.
+
+I am on one core, so **2.4 ms is the number to beat**, not 1.7.
+
+The convolution op's 31.6 ms is not engine time. The engine's own submit-and-wait inside it is
+about 12 ms; the rest is the runner rebuilding and packing descriptors on every single call,
+roughly 0.4 ms × 53.
+
+It is the *elementwise* kernels, not the convolutions, that dominate — 82.6 ms across 40
+launches, the worst of them 9.5 ms each on the layer-1 and layer-2 planes. I had assumed the
+convolutions were the thing to optimise. They aren't, and I only know that because I measured
+per-launch instead of trusting the shape of the problem.
+
+And ~115 ms of device time against a 1.70 s wall means roughly **93% of that wall is host-side
+tinygrad scheduling**, not the NPU at all. The JIT graph that would fix it exists for the vector
+path and isn't wired to the engine op yet.
 
 What I got in exchange is the thing I set out for. The quantisation is mine: BN folding,
 per-unit weight scales, an int32 bias in the accumulator's domain, and an integer reference
-model that every layer on the device is compared against — 83 checks per image, byte-exact, and
-top-1 matching the fp32 model on my (small) test set except one image that's a coin-flip in
-fp32 too. If accuracy ever drops I can see exactly which layer and which arithmetic, because I
-wrote both. Nothing between the model and the hardware is a black box anymore, and none of it
-needs an x86 machine.
+model that every layer on the device is compared against — 83 per-layer comparisons per image,
+byte-exact, with top-1 matching the fp32 model on all six of my test images except one that is
+a coin-flip in fp32 too. I should be plain about what that does *not* establish: I never
+measured the vendor path's accuracy, only its latency, so I am not claiming to beat it. What I
+am claiming is that when my accuracy moves I can see exactly which layer and which arithmetic
+moved it, because I wrote both. Nothing between the model and the hardware is a black box
+anymore, and none of it needs an x86 machine.
 
 ```pikchr {alt="The replacement path: tinygrad model and scheduler splitting into a float kernel path through the on-board vendor toolchain and a quantised convolution path through a descriptor generator, both converging on a TCB chain, the kernel driver and the Zhouyi X2" caption="What replaced it. Everything above the driver runs on the board."}
 scale = 0.9
@@ -186,11 +216,11 @@ text "everything above the driver runs on the board — no vendor runtime" \
 
 ## What's next
 
-The list is short and each item has a measurement behind it: a completion barrier for a
-driver-level artefact where a job reports done while its output is still landing (today I
-re-read until two reads agree, which is a workaround, not a fix); wiring the engine op into the
-JIT graph so the per-image wall stops being Python; and the elementwise kernels on the vector
-cores, which currently cost three times what the convolutions do. Then the second and third
-cores.
+The list is short and each item now has a measurement behind it: the elementwise kernels on
+the vector cores, which cost 2.6× what the convolutions do and are the largest single target;
+wiring the engine op into the JIT graph so that 93% host-side wall stops being Python; hoisting
+the descriptor rebuild out of the per-call path; and a completion barrier for a driver-level
+race where a job reports done while its output is still landing (today I re-read until two
+reads agree, which is a workaround, not a fix). Then the second and third cores.
 
 I don't expect to beat the vendor's number. I do expect to understand every millisecond of mine.
