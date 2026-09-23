@@ -75,9 +75,9 @@ requirement was a packaging decision, not a hardware one.
 Worth being concrete about the machine, because two things about it shaped everything that
 follows.
 
-The board is a Radxa Orion O6N — CIX Sky1 silicon, eight Cortex-A720 cores, and the Zhouyi
-NPU: three cores of four TECs each, plus the AIFF convolution engine. It runs Ubuntu 26.04 on
-the `linux-cix` 7.0.0-41 kernel.
+The board is a CIX P1 based SBC — eight Cortex-A720 cores and the Zhouyi NPU: three cores of
+four TECs each, plus the AIFF convolution engine. It runs Ubuntu 26.04 on the `linux-cix`
+7.0.0-41 kernel.
 
 The first thing: **there is no vendor kernel driver on that kernel.** CIX deleted the in-tree
 `armchina-npu` driver in 7.0.0-41 — no module in the kernel package, no `CONFIG_ARMCHINA_*` in
