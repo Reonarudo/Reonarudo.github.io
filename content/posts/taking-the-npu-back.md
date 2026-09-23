@@ -70,6 +70,39 @@ aarch64 toolchain as a library (`libaiputoolchain.so`, sitting in an onnxruntime
 that the official flow never uses. The compiler was on the board all along. The x86
 requirement was a packaging decision, not a hardware one.
 
+## The setup
+
+Worth being concrete about the machine, because two things about it shaped everything that
+follows.
+
+The board is a Radxa Orion O6N — CIX Sky1 silicon, eight Cortex-A720 cores, and the Zhouyi
+NPU: three cores of four TECs each, plus the AIFF convolution engine. It runs Ubuntu 26.04 on
+the `linux-cix` 7.0.0-41 kernel.
+
+The first thing: **there is no vendor kernel driver on that kernel.** CIX deleted the in-tree
+`armchina-npu` driver in 7.0.0-41 — no module in the kernel package, no `CONFIG_ARMCHINA_*` in
+its config, no replacement anywhere in the PPA. So the driver is ours too, packaged as DKMS. An
+unnoticed kernel bump on this board doesn't degrade the NPU, it removes it, which is why the
+kernel is pinned twice over — an `apt-mark hold` and an apt preference stanza, with independent
+storage, so unholding one cannot silently erase the policy.
+
+The second: **everything runs on the board.** The fork is cloned onto it, into a venv, against
+a world-accessible `/dev/aipu`. There is no cross-compilation step and no x86 host anywhere in
+the loop — which was the whole point.
+
+The tinygrad side is a fork pinned at upstream `902edc378`, and the diff against that pin may
+touch exactly four paths: the tinygrad-facing seam, the standalone support package, the tests,
+and a `core-patches/` directory that records every deviation from the other three as a patch
+file. A test enforces that, untracked files included. Keeping the delta small enough to read in
+one sitting is what makes re-pinning affordable, because there is no hardware-free codegen
+test — every rebase onto a newer upstream is verified on the board or not at all.
+
+The one vendor component left in the loop is clang, and only as codegen: never runtime, never
+in a submit path. Even that is loaded by absolute path with `RTLD_LOCAL`, because putting the
+vendor library directory on the process-wide search path shadows the system libraries and
+breaks tinygrad's own CPU backend — which is the oracle that every correctness claim here is
+checked against.
+
 ## What I built instead
 
 tinygrad is a small ML framework whose backends are thin: a renderer that turns a kernel's op
