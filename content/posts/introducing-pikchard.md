@@ -34,9 +34,8 @@ A: box "attribute" width 0.9 height 0.3 with .e at (4.9,-0.45)
 arrow from A.w left 0.2 then up 0.45 then right 0.2
 ```
 
-Then, doing some hardware/software architecture and stack analysis (the diagrams in
-[my NPU post](/posts/taking-the-npu-back/) came out of that), I needed block diagrams where
-I decide where every box goes. The other tools don't give me that much control. At first I
+Then, doing some hardware/software architecture and stack analysis, I needed block diagrams
+where I decide where every box goes. The other tools don't give me that much control. At first I
 leaned towards D2, which let me build animations out of slides, but it wasn't enough, at
 least not yet. Pikchr was. It is a small language, a descendant of PIC, and every box is
 exactly where you put it.
