@@ -1,6 +1,6 @@
 baseURL = "https://reonarudo.github.io/"
 locale = "en"
-title = "Leonardo Marques"
+title = "Leonardo Jardim Marques"
 theme = "hugo-theme-lab"
 
 [params]
