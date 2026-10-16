@@ -1,0 +1,38 @@
+{{- /*
+  Inlines the SVG that scripts/render-diagrams.mjs pre-rendered for one diagram fence. Every
+  render-codeblock-<lang>.html hook calls this with its own context.
+
+  The file is diagrams/<lang>/<key>.svg, key = sha256(page folder "\n" dialect "\n" .Inner) —
+  the driver computes the same key; change one side and every lookup misses (errorf below).
+  The dialect is part of the key for spice fences only.
+*/ -}}
+{{- $lang := .Type -}}
+{{- $folder := "" -}}
+{{- with .Page.File }}{{ $folder = .Dir }}{{ end -}}
+{{- $dialect := "" -}}
+{{- if eq $lang "spice" }}{{ with .Attributes.dialect }}{{ $dialect = string . }}{{ end }}{{ end -}}
+{{- $key := sha256 (printf "%s\n%s\n%s" $folder $dialect .Inner) -}}
+{{- $align := "" -}}
+{{- with .Attributes.align -}}
+  {{- if not (in (slice "left" "center" "right") .) -}}
+    {{- errorf "%s: %s fence align=%q: use left, center or right" $.Position $lang . -}}
+  {{- end -}}
+  {{- $align = printf " diagram-align-%s" . -}}
+{{- end -}}
+{{- with resources.Get (printf "diagrams/%s/%s.svg" $lang $key) -}}
+{{- /* Natural width from the viewBox, so a small diagram never stretches to the column.
+       Graphviz viewBox units are points, the others' are px. */ -}}
+{{- $width := 0 -}}
+{{- with findRESubmatch `<svg\b[^>]*\bviewBox="([^"]+)"` .Content 1 -}}
+  {{- $width = index (split (replaceRE `[\s,]+` " " (trim (index (index . 0) 1) " ")) " ") 2 | float -}}
+{{- end -}}
+{{- if eq $lang "graphviz" }}{{ $width = mul $width (div 4.0 3.0) }}{{ end -}}
+<figure class="diagram diagram-{{ $lang }}{{ $align }}{{ with $.Attributes.class }} {{ . }}{{ end }}"
+  {{- with $width }} style="--nw:{{ math.Round . }}px"{{ end }}
+  {{- with $.Attributes.alt }} role="img" aria-label="{{ . }}"{{ end }}>
+{{ .Content | safeHTML }}
+{{- with $.Attributes.caption }}<figcaption>{{ . | safeHTML }}</figcaption>{{ end }}
+</figure>
+{{- else -}}
+{{- errorf "%s: %s fence was not pre-rendered. Run: npm run diagrams" $.Position $lang -}}
+{{- end -}}

@@ -1,0 +1,12 @@
+{
+  "name": "reonarudo.github.io",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "diagrams": "node themes/hugo-theme-lab/scripts/render-diagrams.mjs"
+  },
+  "dependencies": {
+    "@reonarudo/gnuplot-renderer": "github:Reonarudo/gnuplot-renderer#v0.2.0",
+    "@reonarudo/pikchr-renderer": "github:Reonarudo/pikchr-renderer#v0.1.0"
+  }
+}

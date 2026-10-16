@@ -14,7 +14,8 @@ ordinary commits in this repo.
 ## Commands
 
 ```sh
-node themes/hugo-theme-lab/scripts/render-diagrams.mjs   # pre-render diagram fences
+npm ci                                                   # install the renderer libraries
+npm run diagrams                                         # pre-render diagram fences
 hugo server                                              # local preview
 hugo --minify                                            # production build
 
@@ -25,7 +26,7 @@ hugo new content posts/my-post.md                        # new post (archetype f
 does not re-run the renderer, so after editing a `pikchr` or `gnuplot` fence:
 
 ```sh
-node themes/hugo-theme-lab/scripts/render-diagrams.mjs && hugo server
+npm run diagrams && hugo server
 ```
 
 There is no test suite. Verification is: run both steps, confirm the build is clean, and
@@ -34,13 +35,8 @@ inline `<svg>`, no leaked fence source).
 
 ### Local prerequisites
 
-`gnuplot` (6.x) and a `pikchr` binary on `PATH`. CI installs both; for local previews:
-
-```sh
-curl -fsSL -o /tmp/pikchr.c \
-  https://raw.githubusercontent.com/Reonarudo/pikchr-markdown-preview-upstream/fix/delegate-non-pikchr-fences/pikchr.c
-cc -O2 -DPIKCHR_SHELL -o /usr/local/bin/pikchr /tmp/pikchr.c -lm
-```
+Node 22 or later (CI uses `.nvmrc`, 24.21.0) and `npm ci`. Nothing native: pikchr and
+gnuplot run as wasm inside the renderer libraries.
 
 ## Architecture: how diagram fences render
 
@@ -49,17 +45,24 @@ JavaScript or wasm is involved; the published HTML contains the finished `<svg>`
 
 Three pieces have to agree, and the contract between them is not visible from any one file:
 
-1. `themes/hugo-theme-lab/scripts/render-diagrams.mjs` scans `content/`, shells out to
-   `pikchr` / `gnuplot`, and writes `assets/diagrams/<lang>/<sha256>.svg`.
+1. `themes/hugo-theme-lab/scripts/render-diagrams.mjs` (`npm run diagrams`) scans
+   `content/`, renders each fence through its `@reonarudo/<lang>-renderer` library, and
+   writes `assets/diagrams/<lang>/<key>.svg`. It wipes `assets/diagrams/` first.
 2. `themes/hugo-theme-lab/layouts/_default/_markup/render-codeblock-{pikchr,gnuplot}.html`
-   recompute that same hash and inline the matching file.
-3. **The hash is the handshake**: `sha256` of the fence body exactly as Hugo hands it to a
-   render hook via `.Inner` — the fence content with the single trailing newline removed,
-   `\n` line endings. Change how either side normalizes the source and every lookup misses.
+   are one line each: they call `layouts/partials/diagram.html`, which recomputes the
+   key and inlines the matching file.
+3. **The key is the handshake**: `sha256(<page folder> "\n" <dialect> "\n" <fence body>)`.
+   The page folder is Hugo's `.Page.File.Dir` (relative to `content/`, `/`-separated,
+   trailing `/`, empty at the root). The dialect is the `dialect` attribute of `spice`
+   fences and empty for every other language. The body is exactly what Hugo hands a
+   render hook as `.Inner` — the fence content with the single trailing newline removed,
+   `\n` line endings. Change how either side computes any part and every lookup misses.
+   The decision record is ADR 0007 on the Markdown Renderers wiki.
 
 A fence with no matching SVG calls `errorf`, so Hugo exits non-zero rather than publishing
-a page with a hole in it. Bad diagram source fails the renderer with a file:line message.
-Both are deliberate — a broken diagram must never deploy silently.
+a page with a hole in it. Bad diagram source fails the renderer with a
+`file:line:column` message; `--keep-going` renders the rest anyway. Both are deliberate —
+a broken diagram must never deploy silently.
 
 `assets/diagrams/` is generated output and gitignored. Do not commit it.
 
@@ -72,16 +75,23 @@ to match what they show:
 - [pikchr-markdown-preview-upstream](https://github.com/Reonarudo/pikchr-markdown-preview-upstream),
   branch `fix/delegate-non-pikchr-fences`
 
-Consequences for this repo:
+The site renders through the libraries extracted from those extensions
+(`Reonarudo/pikchr-renderer`, `Reonarudo/gnuplot-renderer`), not through the extensions
+themselves. Consequences for this repo:
 
-- `checkOutputPolicy()` in `render-diagrams.mjs` is a port of the extension's
-  `src/policy.ts`. `set terminal` / `set output` / `load` / `call` are rejected, and
-  sources are capped at 64 KB. **Keep it in sync with upstream** — a fence that previews
-  cleanly should also build.
-- gnuplot runs with its working directory set to the Markdown file's directory, so
-  `plot "./data/x.csv"` resolves the way the preview resolves it.
-- Version skew is tolerated: CI has gnuplot 6.0.0 (Ubuntu), the extension bundles 6.0.2
-  (wasm). Same minor line; patch-level rendering differences are possible.
+- The libraries are pinned by tag in `package.json` (`github:Reonarudo/<name>-renderer#vX.Y.Z`)
+  and by commit in `package-lock.json`. Tags are immutable; upgrading means a new tag and
+  `npm install`.
+- `npm install` writes the lockfile's git URLs as `git+ssh://`. The committed lockfile
+  records `git+https://`; rewrite it back after an install
+  (`sed -i '' 's#git+ssh://git@github.com/#git+https://github.com/#' package-lock.json`).
+  `npm ci` fetches over HTTPS either way.
+- pikchr-renderer is built from pikchr.org trunk, newer than the extension's 2021 engine:
+  trunk-only syntax (`diamond`, `mono`) builds here but does not preview yet.
+- The extensions draw gnuplot at 1000×500; the site passes 800×500, so the aspect ratio
+  differs from the preview.
+- gnuplot data files resolve relative to the Markdown file, as in the preview, and may
+  not leave `content/`.
 
 ## Gotchas
 
@@ -89,8 +99,9 @@ Consequences for this repo:
   midnight; if the author's timezone is ahead of UTC that is in the future, and Hugo drops
   the page with a green build and no warning. Use the full RFC3339 stamp with offset that
   `hugo new` generates, or set `timeZone` in `hugo.toml`.
-- **The content column is 680px wide, 632px inside padding.** A diagram is scaled to that
-  width, so a wide diagram becomes an unreadable strip. Check the rendered `viewBox`
+- **The content column is 680px wide, 632px inside padding.** A diagram is shown at its
+  natural (viewBox) width, but a wider one is scaled down to the column, so a wide diagram
+  becomes an unreadable strip. Check the rendered `viewBox`
   aspect ratio; prefer vertical layouts.
 - Markdown files must not open with an `<h1>` — the theme renders `.Title` as the page
   `<h1>`, so a leading `#` heading duplicates it.

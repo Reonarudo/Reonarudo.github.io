@@ -51,7 +51,9 @@ main h1{margin:44px 0 28px;font-size:40px;line-height:1.15;font-weight:600;lette
 .site-footer a{color:var(--muted)}
 @media (max-width:520px){.post-item{grid-template-columns:1fr;gap:6px}main h1{font-size:32px}}
 .diagram{margin:0 0 26px;padding:0;text-align:center}
-.diagram svg{max-width:100%;height:auto;border-radius:6px;background:#fff}
+.diagram svg{width:var(--nw,auto);max-width:100%;height:auto;border-radius:6px;background:#fff}
+.diagram-align-left{text-align:left}
+.diagram-align-right{text-align:right}
 .diagram-pikchr svg{padding:14px 10px;border:1px solid var(--line)}
 .diagram figcaption{margin-top:10px;font-size:14px;color:var(--muted);text-wrap:pretty}
 [data-theme=dark] .diagram svg{filter:invert(1) hue-rotate(180deg);background:#fff}

@@ -51,44 +51,51 @@ box "md" fit; arrow right 0.4; box "svg" fit
 ```
 ````
 
-`alt` sets `role="img"` plus `aria-label`; `caption` adds a `<figcaption>`. Any other
-fence language is left alone.
+`alt` sets `role="img"` plus `aria-label`; `caption` adds a `<figcaption>`; `class` is
+appended to the figure's classes; `align` is `left`, `center` (the default) or `right`,
+and anything else fails the build. Any other fence language is left alone.
+
+A diagram is shown at its natural size, shrinking to fit the column but never stretching
+past it.
 
 ### How it works
 
-`scripts/render-diagrams.mjs` scans `content/`, renders each diagram fence, and writes
-`assets/diagrams/<lang>/<sha256 of the fence body>.svg`. The render hooks in
-`layouts/_default/_markup/` look the SVG up by that same hash and inline it. A fence
-with no matching SVG **fails the build** rather than publishing a page with a hole in it.
+`scripts/render-diagrams.mjs` scans `content/`, renders each diagram fence through the
+[`@reonarudo/pikchr-renderer`](https://github.com/Reonarudo/pikchr-renderer) and
+[`@reonarudo/gnuplot-renderer`](https://github.com/Reonarudo/gnuplot-renderer) libraries,
+and writes `assets/diagrams/<lang>/<key>.svg`. Every render hook in
+`layouts/_default/_markup/` calls `layouts/partials/diagram.html`, which computes the same
+key and inlines the SVG. The key is `sha256(<page folder> "\n" <dialect> "\n" <fence body>)`:
+the page folder is Hugo's `.Page.File.Dir`, so two posts with the same fence and different
+data files never share an SVG; the dialect is empty for pikchr and gnuplot.
 
-Add `assets/diagrams/` to the site repo's `.gitignore` — it is generated output.
+A fence the libraries reject fails the renderer with a `file:line:column` message, and a
+fence with no matching SVG **fails the build** rather than publishing a page with a hole
+in it. The renderer wipes `assets/diagrams/` on every run; add it to the site repo's
+`.gitignore` — it is generated output.
 
 ### Requirements
 
-- `gnuplot` on `PATH` (6.x; the VS Code extension bundles 6.0.2 as wasm)
-- `pikchr` on `PATH`, built from the same source the extension uses:
-  ```sh
-  curl -fsSL -o /tmp/pikchr.c \
-    https://raw.githubusercontent.com/Reonarudo/pikchr-markdown-preview-upstream/fix/delegate-non-pikchr-fences/pikchr.c
-  cc -O2 -DPIKCHR_SHELL -o /usr/local/bin/pikchr /tmp/pikchr.c -lm
-  ```
-
-The supplied workflow installs both in CI, so this is only needed for local previews.
+The site repo needs a `package.json` that depends on the libraries and has a `diagrams`
+script, an `.npmrc` with `allow-git=root` (npm refuses git dependencies without it) and
+an `.nvmrc`; reonarudo.github.io has all three. Locally that means Node 22 or later and
+`npm ci`. Nothing native: the libraries carry their engines as wasm.
 
 ### Local preview
 
 `hugo server` does not re-run the renderer, so re-run it after editing a fence:
 
 ```sh
-node themes/hugo-theme-lab/scripts/render-diagrams.mjs && hugo server
+npm run diagrams && hugo server
 ```
 
 ### Constraints
 
-Mirrors the gnuplot extension's policy so a fence that previews also builds:
-`set terminal` / `set output` are rejected (the build owns those), as are `load` and
-`call`. Data files referenced by `plot "./data/x.csv"` resolve relative to the
-Markdown file, and sources are capped at 64 KB.
+The libraries treat fence source as untrusted. gnuplot owns the terminal and output, so
+`set terminal` / `set output` are rejected, as are `load` and `call`. Data files
+referenced by `plot "./data/x.csv"` resolve relative to the Markdown file and may not
+leave `content/`. Sources are capped at 64 000 characters, and a render that runs past 3
+seconds fails. gnuplot draws on an 800×500 canvas.
 
 ### Authoring both fence types in VS Code
 
