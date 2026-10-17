@@ -76,10 +76,10 @@ Cn1cnc2c1c(=O)n(C)c(=O)n2C caffeine
 A `smarts` fence takes the same layout, but each line is a substructure pattern instead
 of a molecule:
 
-```smarts {alt="Three SMARTS patterns" caption="A carboxylic acid, a C or N with a hydrogen, and an amine that is not an amide."}
+```smarts {alt="Three SMARTS patterns" caption="A carboxylic acid, a primary amine, and a six-membered carbon ring with any bonds."}
 [CX3](=O)[OX2H1] carboxylic acid
-[C,N;!H0]~* C or N with a hydrogen
-[NX3;H2,H1;!$(NC=O)] amine, not amide
+[NX3;H2][CX4] primary amine
+[#6]1~[#6]~[#6]~[#6]~[#6]~[#6]~1 any C6 ring
 ```
 
 ## SPICE
