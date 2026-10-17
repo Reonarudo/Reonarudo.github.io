@@ -1,6 +1,7 @@
 ---
 title: "Every diagram fence this site renders"
 date: 2026-10-17T15:45:00+02:00
+draft: true
 summary: "Graphs, molecules and circuits now render here the way pikchr diagrams always have: written as a fenced code block, turned into SVG when the site is built. This page shows one of each."
 ---
 
