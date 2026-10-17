@@ -71,16 +71,20 @@ c1ccccc1 benzene
 Cn1cnc2c1c(=O)n(C)c(=O)n2C caffeine
 ```
 
-Polymers can be written as one repeat unit, with `*` where the chain continues; it's
-drawn as `?`. Nafion is a perfluorinated sulfonic acid membrane, shown here in its proton
-form. Surlyn is an ethylene–methacrylic acid copolymer, shown here as its sodium salt:
+SMILES has no notation for a polymer chain, so PubChem records polymers as the monomers
+they're made from, written as one mixture with `.` between the parts. Nafion, a
+perfluorinated sulfonic acid membrane, is tetrafluoroethylene plus a sulfonic acid vinyl
+ether ([CID 61889](https://pubchem.ncbi.nlm.nih.gov/compound/61889)):
 
-```smiles {alt="The repeat unit of Nafion" caption="Nafion's repeat unit. Each ? is where the chain continues."}
-*C(F)(F)C(F)(F)C(F)(F)C(*)(F)OC(F)(F)C(F)(C(F)(F)F)OC(F)(F)C(F)(F)S(=O)(=O)[O-].[H+] Nafion
+```smiles {alt="Nafion's monomers: a perfluorinated sulfonic acid vinyl ether and tetrafluoroethylene" caption="Nafion, as PubChem records its monomers."}
+C(=C(F)F)(OC(C(C(F)(F)F)(OC(C(F)(F)S(=O)(=O)O)(F)F)F)(F)F)F.C(=C(F)F)(F)F Nafion
 ```
 
-```smiles {alt="The repeat unit of Surlyn, sodium salt" caption="Surlyn's repeat unit, sodium salt."}
-*CCCC(*)(C)C(=O)[O-].[Na+] Surlyn
+Surlyn, an ethylene–methacrylic acid ionomer, is shown as its sodium salt
+([CID 23688925](https://pubchem.ncbi.nlm.nih.gov/compound/23688925)):
+
+```smiles {alt="Surlyn's monomers: sodium methacrylate and ethylene" caption="Surlyn (sodium), as PubChem records its monomers."}
+CC(=C)C(=O)[O-].C=C.[Na+] Surlyn
 ```
 
 ## SMARTS
