@@ -23,7 +23,7 @@ hugo new content posts/my-post.md                        # new post (archetype f
 ```
 
 **The build is two steps, always in this order**: pre-render, then Hugo. `hugo server`
-does not re-run the renderer, so after editing a `pikchr` or `gnuplot` fence:
+does not re-run the renderer, so after editing a diagram fence:
 
 ```sh
 npm run diagrams && hugo server
@@ -31,25 +31,28 @@ npm run diagrams && hugo server
 
 There is no test suite. Verification is: run both steps, confirm the build is clean, and
 grep the generated HTML in `public/` for what you expect (e.g. `diagram-pikchr`, an
-inline `<svg>`, no leaked fence source).
+inline `<svg>`, no leaked fence source). `content/posts/diagram-fences/` is a published
+showcase with a fence of every language; if it builds, every renderer works.
 
 ### Local prerequisites
 
-Node 22 or later (CI uses `.nvmrc`, 24.21.0) and `npm ci`. Nothing native: pikchr and
-gnuplot run as wasm inside the renderer libraries.
+Node 22 or later (CI uses `.nvmrc`, 24.21.0) and `npm ci`. Nothing native: every engine
+runs as wasm or JavaScript inside the renderer libraries.
 
 ## Architecture: how diagram fences render
 
-` ```pikchr ` and ` ```gnuplot ` fences become inline SVG **at build time**. No client-side
+` ```pikchr `, ` ```gnuplot `, ` ```graphviz `, ` ```smiles `, ` ```smarts ` and
+` ```spice ` fences become inline SVG **at build time**. No client-side
 JavaScript or wasm is involved; the published HTML contains the finished `<svg>`.
 
 Three pieces have to agree, and the contract between them is not visible from any one file:
 
 1. `themes/hugo-theme-lab/scripts/render-diagrams.mjs` (`npm run diagrams`) scans
-   `content/`, renders each fence through its `@reonarudo/<lang>-renderer` library, and
-   writes `assets/diagrams/<lang>/<key>.svg`. It wipes `assets/diagrams/` first.
-2. `themes/hugo-theme-lab/layouts/_default/_markup/render-codeblock-{pikchr,gnuplot}.html`
-   are one line each: they call `layouts/partials/diagram.html`, which recomputes the
+   `content/`, renders each fence through its `@reonarudo/<name>-renderer` library
+   (`smiles` and `smarts` share smiles-renderer), and writes
+   `assets/diagrams/<lang>/<key>.svg`. It wipes `assets/diagrams/` first.
+2. `themes/hugo-theme-lab/layouts/_default/_markup/render-codeblock-<lang>.html`, one per
+   fence language, are one line each: they call `layouts/partials/diagram.html`, which recomputes the
    key and inlines the matching file.
 3. **The key is the handshake**: `sha256(<page folder> "\n" <dialect> "\n" <fence body>)`.
    The page folder is Hugo's `.Page.File.Dir` (relative to `content/`, `/`-separated,
@@ -68,16 +71,19 @@ a broken diagram must never deploy silently.
 
 ## Parity with the VS Code preview
 
-Posts are authored in VS Code with two Markdown-preview extensions, and the site is built
-to match what they show:
+Posts are authored in VS Code with Markdown-preview extensions, and the site is built to
+match what they show:
 
 - [gnuplot-markdown-preview](https://github.com/Reonarudo/gnuplot-markdown-preview)
 - [pikchr-markdown-preview-upstream](https://github.com/Reonarudo/pikchr-markdown-preview-upstream),
   branch `fix/delegate-non-pikchr-fences`
+- [graphviz-markdown-preview](https://github.com/Reonarudo/graphviz-markdown-preview)
+- [smiles-markdown-preview](https://github.com/Reonarudo/smiles-markdown-preview)
+- [spice-markdown-preview](https://github.com/Reonarudo/spice-markdown-preview)
 
 The site renders through the libraries extracted from those extensions
-(`Reonarudo/pikchr-renderer`, `Reonarudo/gnuplot-renderer`), not through the extensions
-themselves. Consequences for this repo:
+(`Reonarudo/<name>-renderer` for pikchr, gnuplot, graphviz, smiles and spice), not through
+the extensions themselves. Consequences for this repo:
 
 - The libraries are pinned by tag in `package.json` (`github:Reonarudo/<name>-renderer#vX.Y.Z`)
   and by commit in `package-lock.json`. Tags are immutable; upgrading means a new tag and
@@ -90,8 +96,13 @@ themselves. Consequences for this repo:
   trunk-only syntax (`diamond`, `mono`) builds here but does not preview yet.
 - The extensions draw gnuplot at 1000×500; the site passes 800×500, so the aspect ratio
   differs from the preview.
-- gnuplot data files resolve relative to the Markdown file, as in the preview, and may
-  not leave `content/`.
+- gnuplot data files and SPICE includes resolve relative to the Markdown file, as in the
+  preview, and may not leave `content/`.
+- A `spice` fence is read as ngspice unless it has a `dialect` attribute; there is no
+  site-wide default. The attribute as written is part of the handshake key.
+- Library SVGs have no `width`/`height`, only a `viewBox`. The partial sets `--nw` from it
+  (×4/3 for graphviz, whose units are points), so a diagram never stretches past its
+  natural size.
 
 ## Gotchas
 
@@ -112,5 +123,7 @@ themselves. Consequences for this repo:
 
 `themes/hugo-theme-lab/README.md` documents the theme's own front matter (`summary`,
 `cover.*`) and fence attributes (`{alt="..." caption="..."}`). Dark mode is a CSS filter
-inversion on `.diagram svg`, because raw pikchr output is black-on-transparent and would
-otherwise be invisible on the dark background.
+inversion on `.diagram>svg`, the same for every renderer (graphviz and smiles colours
+invert too), because raw pikchr output is black-on-transparent and would otherwise be
+invisible on the dark background. Keep diagram rules on the **root** SVG (`>`): smiles
+nests one `<svg>` per molecule, and a descendant selector inverts them twice.

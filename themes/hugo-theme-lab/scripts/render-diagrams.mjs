@@ -29,6 +29,7 @@ const KEEP_GOING = args.includes('--keep-going');
 /**
  * One entry per fence language: how to start its library's runtime, and how to turn a fence
  * into that library's render input. `reader` is the Markdown file's file reader, made on demand.
+ * `runtime` names the runtime to share when two fence languages use one library.
  */
 const RENDERERS = {
   pikchr: {
@@ -41,6 +42,30 @@ const RENDERERS = {
       (await import('@reonarudo/gnuplot-renderer')).createRuntime({ size: { width: 800, height: 500 } }),
     input: async (fence, reader) =>
       (await import('@reonarudo/gnuplot-renderer')).prepare(fence.source, { reader: await reader('gnuplot') }),
+  },
+  graphviz: {
+    start: async () => (await import('@reonarudo/graphviz-renderer')).createRuntime(),
+    input: async (fence) => ({ source: fence.source }),
+  },
+  // smiles and smarts fences share one runtime; the fence language is the notation.
+  smiles: {
+    start: async () => (await import('@reonarudo/smiles-renderer')).createRuntime(),
+    input: async (fence) => ({ source: fence.source, notation: 'smiles' }),
+    runtime: 'smiles',
+  },
+  smarts: {
+    start: async () => (await import('@reonarudo/smiles-renderer')).createRuntime(),
+    input: async (fence) => ({ source: fence.source, notation: 'smarts' }),
+    runtime: 'smiles',
+  },
+  spice: {
+    start: async () => (await import('@reonarudo/spice-renderer')).createRuntime(),
+    // The dialect attribute as written, else ngspice; the library checks the name.
+    input: async (fence, reader) =>
+      (await import('@reonarudo/spice-renderer')).prepare(fence.source, {
+        reader: await reader('spice'),
+        dialect: fence.dialect || 'ngspice',
+      }),
   },
 };
 
@@ -104,7 +129,7 @@ function position(file, fence, line, column) {
 }
 
 const failures = [];
-const runtimes = new Map(); // fence language → Promise<Runtime>, started on first use
+const runtimes = new Map(); // runtime name → Promise<Runtime>, started on first use
 let rendered = 0;
 
 let documents = [];
@@ -131,8 +156,9 @@ try {
     for (const fence of fences(markdown)) {
       const renderer = RENDERERS[fence.lang];
       if (!renderer) continue;
-      if (!runtimes.has(fence.lang)) runtimes.set(fence.lang, renderer.start());
-      const runtime = await runtimes.get(fence.lang);
+      const name = renderer.runtime ?? fence.lang;
+      if (!runtimes.has(name)) runtimes.set(name, renderer.start());
+      const runtime = await runtimes.get(name);
       const result = runtime.render(await renderer.input(fence, reader));
       const where = (line, column) => `${position(file, fence, line, column)} (${fence.lang})`;
       switch (result.status) {
