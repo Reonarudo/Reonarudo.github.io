@@ -71,6 +71,18 @@ c1ccccc1 benzene
 Cn1cnc2c1c(=O)n(C)c(=O)n2C caffeine
 ```
 
+Polymers can be written as one repeat unit, with `*` where the chain continues; it's
+drawn as `?`. Nafion is a perfluorinated sulfonic acid membrane, shown here in its proton
+form. Surlyn is an ethylene–methacrylic acid copolymer, shown here as its sodium salt:
+
+```smiles {alt="The repeat unit of Nafion" caption="Nafion's repeat unit. Each ? is where the chain continues."}
+*C(F)(F)C(F)(F)C(F)(F)C(*)(F)OC(F)(F)C(F)(C(F)(F)F)OC(F)(F)C(F)(F)S(=O)(=O)[O-].[H+] Nafion
+```
+
+```smiles {alt="The repeat unit of Surlyn, sodium salt" caption="Surlyn's repeat unit, sodium salt."}
+*CCCC(*)(C)C(=O)[O-].[Na+] Surlyn
+```
+
 ## SMARTS
 
 A `smarts` fence takes the same layout, but each line is a substructure pattern instead
