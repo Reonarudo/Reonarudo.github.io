@@ -76,7 +76,7 @@ they're made from, written as one mixture with `.` between the parts. Nafion, a
 perfluorinated sulfonic acid membrane, is tetrafluoroethylene plus a sulfonic acid vinyl
 ether ([CID 61889](https://pubchem.ncbi.nlm.nih.gov/compound/61889)):
 
-```smiles {alt="Nafion's monomers: a perfluorinated sulfonic acid vinyl ether and tetrafluoroethylene" caption="Nafion, as PubChem records its monomers."}
+```smiles {alt="Nafion's monomers: a perfluorinated sulfonic acid vinyl ether and tetrafluoroethylene" caption="Nafion, as PubChem records its monomers. The ? marks a stereocentre the record leaves unspecified."}
 C(=C(F)F)(OC(C(C(F)(F)F)(OC(C(F)(F)S(=O)(=O)O)(F)F)F)(F)F)F.C(=C(F)F)(F)F Nafion
 ```
 
