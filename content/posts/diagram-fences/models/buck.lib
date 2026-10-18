@@ -1,0 +1,4 @@
+* Device models for the buck converter below
+.model PSW PMOS(VTO=-2 KP=10)
+.model DSCH D(IS=1e-5 RS=0.02 CJO=200p)
+.end

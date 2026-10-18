@@ -1,3 +1,0 @@
-* Transistor models for the follower below
-.model QN NPN(BF=200)
-.end
