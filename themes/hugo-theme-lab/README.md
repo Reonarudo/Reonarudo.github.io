@@ -1,6 +1,6 @@
 # hugo-theme-lab
 
-Minimal text-first Hugo blog theme. Light/dark toggle, reading time, cover images, prev/next navigation, and build-time rendering of `pikchr`, `gnuplot`, `graphviz`, `smiles`, `smarts` and `spice` code fences.
+Minimal text-first Hugo blog theme. Light/dark toggle, reading time, cover images, prev/next navigation, and build-time rendering of `pikchr`, `gnuplot`, `graphviz`, `smiles`, `smarts`, `spice` and `onnx` code fences.
 
 ## Setup
 
@@ -29,7 +29,7 @@ Push to `main`; in repo Settings → Pages set Source to **GitHub Actions**. The
 ## Diagram fences
 
 A ```` ```pikchr ````, ```` ```gnuplot ````, ```` ```graphviz ````, ```` ```smiles ````,
-```` ```smarts ```` or ```` ```spice ```` fence is rendered to inline SVG at build time, so
+```` ```smarts ````, ```` ```spice ```` or ```` ```onnx ```` fence is rendered to inline SVG at build time, so
 it matches what the VS Code Markdown preview shows and needs no JavaScript, no network
 service, and no client-side wasm.
 
@@ -57,6 +57,10 @@ V1 in 0 AC 1
 R1 in out 10k
 C1 out 0 100n
 ```
+
+```onnx
+g (float[N, 3] x) => (float[N, 3] y) { y = Relu (x) }
+```
 ````
 
 - `graphviz` takes one DOT graph; the `layout` graph attribute picks the engine.
@@ -66,6 +70,9 @@ C1 out 0 100n
 - `spice` takes a netlist and draws its schematic. It is read as ngspice unless the fence
   names one of `ngspice`, `ltspice`, `pspice`, `hspice`, `xyce` or `spectre`:
   ```` ```spice {dialect="ltspice"} ````. An unknown dialect fails the build.
+- `onnx` takes one model as text — the ONNX text syntax, the protobuf text form or JSON —
+  and draws its graph Netron-style; nothing is run. The graph flows down unless the fence
+  sets ```` ```onnx {direction="right"} ````; any value but `down` or `right` fails the build.
 
 Optional attributes, on the info line:
 
@@ -89,14 +96,15 @@ past it.
 [pikchr](https://github.com/Reonarudo/pikchr-renderer),
 [gnuplot](https://github.com/Reonarudo/gnuplot-renderer),
 [graphviz](https://github.com/Reonarudo/graphviz-renderer),
-[smiles](https://github.com/Reonarudo/smiles-renderer) (for `smiles` and `smarts`) and
-[spice](https://github.com/Reonarudo/spice-renderer) — and writes
+[smiles](https://github.com/Reonarudo/smiles-renderer) (for `smiles` and `smarts`),
+[spice](https://github.com/Reonarudo/spice-renderer) and
+[onnx](https://github.com/Reonarudo/onnx-renderer) — and writes
 `assets/diagrams/<lang>/<key>.svg`. Every render hook in
 `layouts/_default/_markup/` calls `layouts/partials/diagram.html`, which computes the same
-key and inlines the SVG. The key is `sha256(<page folder> "\n" <dialect> "\n" <fence body>)`:
+key and inlines the SVG. The key is `sha256(<page folder> "\n" <attribute> "\n" <fence body>)`:
 the page folder is Hugo's `.Page.File.Dir`, so two posts with the same fence and different
-data or include files never share an SVG; the dialect is the `spice` fence's `dialect`
-attribute as written, and empty for every other language.
+data or include files never share an SVG; the attribute is the fence's drawing attribute as
+written — `dialect` on `spice`, `direction` on `onnx` — and empty for every other language.
 
 A fence the libraries reject fails the renderer with a `file:line:column` message, and a
 fence with no matching SVG **fails the build** rather than publishing a page with a hole
@@ -123,13 +131,14 @@ npm run diagrams && hugo server
 The libraries treat fence source as untrusted. gnuplot owns the terminal and output, so
 `set terminal` / `set output` are rejected, as are `load` and `call`. Data files
 referenced by `plot "./data/x.csv"` and SPICE `.include`/`.lib` files resolve relative to
-the Markdown file and may not leave `content/`. Sources are capped at 64 000 characters,
-and a render that runs past 3 seconds fails. gnuplot draws on an 800×500 canvas.
+the Markdown file and may not leave `content/`; an `onnx` fence reads nothing outside
+itself. Sources are capped at 64 000 characters (1 000 000 and 1000 nodes for `onnx`,
+whose text forms run long), and a render that runs past 3 seconds fails. gnuplot draws on an 800×500 canvas.
 
 ### Authoring in VS Code
 
 Install **Gnuplot Markdown Preview** (`ReoX86.gnuplot-markdown-preview`), the Graphviz,
-SMILES and SPICE preview extensions, and the pikchr extension built from the
+SMILES and SPICE preview extensions, ONNX Graph Preview, and the pikchr extension built from the
 `fix/delegate-non-pikchr-fences` branch. Earlier pikchr builds replace *every* non-pikchr
 fence in the preview with raw unescaped text; the branch makes the plugin delegate fences
 it does not own, so the extensions coexist in either load order. The site build is

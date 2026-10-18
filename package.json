@@ -8,6 +8,7 @@
   "dependencies": {
     "@reonarudo/gnuplot-renderer": "github:Reonarudo/gnuplot-renderer#v0.2.0",
     "@reonarudo/graphviz-renderer": "github:Reonarudo/graphviz-renderer#v0.1.0",
+    "@reonarudo/onnx-renderer": "github:Reonarudo/onnx-renderer#v0.1.0",
     "@reonarudo/pikchr-renderer": "github:Reonarudo/pikchr-renderer#v0.1.0",
     "@reonarudo/smiles-renderer": "github:Reonarudo/smiles-renderer#v0.1.0",
     "@reonarudo/spice-renderer": "github:Reonarudo/spice-renderer#v0.1.0"

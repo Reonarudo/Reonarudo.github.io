@@ -41,8 +41,8 @@ runs as wasm or JavaScript inside the renderer libraries.
 
 ## Architecture: how diagram fences render
 
-` ```pikchr `, ` ```gnuplot `, ` ```graphviz `, ` ```smiles `, ` ```smarts ` and
-` ```spice ` fences become inline SVG **at build time**. No client-side
+` ```pikchr `, ` ```gnuplot `, ` ```graphviz `, ` ```smiles `, ` ```smarts `,
+` ```spice ` and ` ```onnx ` fences become inline SVG **at build time**. No client-side
 JavaScript or wasm is involved; the published HTML contains the finished `<svg>`.
 
 Three pieces have to agree, and the contract between them is not visible from any one file:
@@ -54,13 +54,15 @@ Three pieces have to agree, and the contract between them is not visible from an
 2. `themes/hugo-theme-lab/layouts/_default/_markup/render-codeblock-<lang>.html`, one per
    fence language, are one line each: they call `layouts/partials/diagram.html`, which recomputes the
    key and inlines the matching file.
-3. **The key is the handshake**: `sha256(<page folder> "\n" <dialect> "\n" <fence body>)`.
+3. **The key is the handshake**: `sha256(<page folder> "\n" <attribute> "\n" <fence body>)`.
    The page folder is Hugo's `.Page.File.Dir` (relative to `content/`, `/`-separated,
-   trailing `/`, empty at the root). The dialect is the `dialect` attribute of `spice`
-   fences and empty for every other language. The body is exactly what Hugo hands a
+   trailing `/`, empty at the root). The attribute is the language's drawing attribute
+   as written — `dialect` on `spice`, `direction` on `onnx` — and empty for every other
+   language or when the fence has none. The driver's `RENDERERS[lang].attribute` and the
+   partial's `dict` name it; keep the two in step. The body is exactly what Hugo hands a
    render hook as `.Inner` — the fence content with the single trailing newline removed,
    `\n` line endings. Change how either side computes any part and every lookup misses.
-   The decision record is ADR 0007 on the Markdown Renderers wiki.
+   The decision records are ADR 0007 and ADR 0008 on the Markdown Renderers wiki.
 
 A fence with no matching SVG calls `errorf`, so Hugo exits non-zero rather than publishing
 a page with a hole in it. Bad diagram source fails the renderer with a
@@ -80,9 +82,10 @@ match what they show:
 - [graphviz-markdown-preview](https://github.com/Reonarudo/graphviz-markdown-preview)
 - [smiles-markdown-preview](https://github.com/Reonarudo/smiles-markdown-preview)
 - [spice-markdown-preview](https://github.com/Reonarudo/spice-markdown-preview)
+- [onnx-markdown-preview](https://github.com/Reonarudo/onnx-markdown-preview)
 
 The site renders through the libraries extracted from those extensions
-(`Reonarudo/<name>-renderer` for pikchr, gnuplot, graphviz, smiles and spice), not through
+(`Reonarudo/<name>-renderer` for pikchr, gnuplot, graphviz, smiles, spice and onnx), not through
 the extensions themselves. Consequences for this repo:
 
 - The libraries are pinned by tag in `package.json` (`github:Reonarudo/<name>-renderer#vX.Y.Z`)
@@ -100,9 +103,11 @@ the extensions themselves. Consequences for this repo:
   preview, and may not leave `content/`.
 - A `spice` fence is read as ngspice unless it has a `dialect` attribute; there is no
   site-wide default. The attribute as written is part of the handshake key.
+- An `onnx` fence flows down unless it has `direction="right"`; any other value, `Right`
+  and `""` included, fails the build. As written, it is part of the handshake key.
 - Library SVGs have no `width`/`height`, only a `viewBox`. The partial sets `--nw` from it
-  (×4/3 for graphviz, whose units are points), so a diagram never stretches past its
-  natural size.
+  (×4/3 for graphviz, whose units are points; ×1 for the rest, onnx included), so a
+  diagram never stretches past its natural size.
 
 ## Gotchas
 
@@ -124,6 +129,7 @@ the extensions themselves. Consequences for this repo:
 `themes/hugo-theme-lab/README.md` documents the theme's own front matter (`summary`,
 `cover.*`) and fence attributes (`{alt="..." caption="..."}`). Dark mode is a CSS filter
 inversion on `.diagram>svg`, the same for every renderer (graphviz and smiles colours
-invert too), because raw pikchr output is black-on-transparent and would otherwise be
-invisible on the dark background. Keep diagram rules on the **root** SVG (`>`): smiles
+invert too, and onnx's Netron category colours become lighter pastels), because raw
+pikchr output is black-on-transparent and would otherwise be invisible on the dark
+background. Keep diagram rules on the **root** SVG (`>`): smiles
 nests one `<svg>` per molecule, and a descendant selector inverts them twice.

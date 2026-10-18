@@ -2,11 +2,11 @@
 title: "Every diagram fence this site renders"
 date: 2026-10-17T15:45:00+02:00
 draft: true
-summary: "Graphs, molecules and circuits now render here the way pikchr diagrams always have: written as a fenced code block, turned into SVG when the site is built. This page shows one of each."
+summary: "Graphs, molecules, circuits and neural networks now render here the way pikchr diagrams always have: written as a fenced code block, turned into SVG when the site is built. This page shows one of each."
 ---
 
 This blog renders diagrams from fenced code blocks. Until now that meant `pikchr` and
-`gnuplot`. It now also renders `graphviz`, `smiles`, `smarts` and `spice`. Every fence
+`gnuplot`. It now also renders `graphviz`, `smiles`, `smarts`, `spice` and `onnx`. Every fence
 becomes inline SVG when the site is built, using the same renderers as my VS Code
 previews. Visitors get finished pictures: no JavaScript and no wasm.
 
@@ -150,13 +150,58 @@ model nch bsim4 type=n
 model pch bsim4 type=p
 ```
 
+## ONNX
+
+An `onnx` fence holds a model written as text, and the graph is drawn in the style of
+[Netron](https://netron.app). Nothing runs: only the structure is read. This small CNN
+is written in the [ONNX text syntax](https://onnx.ai/onnx/repo-docs/Syntax.html):
+
+````markdown
+```onnx
+<ir_version: 8, opset_import: ["" : 17]>
+cnn (float[N, 3, 32, 32] x, float[8, 3, 3, 3] w = {}, float[8] b = {}) => (float[N, 10] y) {
+  c = Conv <kernel_shape = [3, 3], pads = [1, 1, 1, 1]> (x, w, b)
+  ...
+}
+```
+````
+
+```onnx {alt="A small CNN: Conv, BatchNormalization, Relu, MaxPool, GlobalAveragePool, Flatten and Gemm, top to bottom"}
+<ir_version: 8, opset_import: ["" : 17]>
+cnn (float[N, 3, 32, 32] x, float[8, 3, 3, 3] w = {}, float[8] b = {}) => (float[N, 10] y) {
+  c = Conv <kernel_shape = [3, 3], pads = [1, 1, 1, 1]> (x, w, b)
+  bn = BatchNormalization <epsilon = 0.00001> (c, scale, bias, mean, var)
+  r = Relu (bn)
+  p = MaxPool <kernel_shape = [2, 2], strides = [2, 2]> (r)
+  g = GlobalAveragePool (p)
+  f = Flatten (g)
+  y = Gemm <transB = 1> (f, fc_w, fc_b)
+}
+```
+
+The graph flows down unless the fence sets `direction="right"`. The protobuf text form,
+what `onnx.save(…, format="textproto")` writes, is read too:
+
+```onnx {direction="right" alt="A two-layer perceptron, MatMul, Relu and MatMul, left to right" caption="A two-layer perceptron in the protobuf text form, laid out to the right."}
+ir_version: 7
+producer_name: "hand"
+graph {
+  name: "mlp"
+  node { input: "x" input: "w1" output: "h" op_type: "MatMul" }
+  node { input: "h" output: "a" op_type: "Relu" }
+  node { input: "a" input: "w2" output: "y" op_type: "MatMul" name: "head" }
+  input { name: "x" type { tensor_type { elem_type: 1 shape { dim { dim_param: "N" } dim { dim_value: 784 } } } } }
+  output { name: "y" type { tensor_type { elem_type: 1 shape { dim { dim_param: "N" } dim { dim_value: 10 } } } } }
+}
+```
+
 ## Pikchr and gnuplot
 
 These two were already supported, and they render through the same pipeline:
 
-```pikchr {alt="Six fence languages feeding one build step that produces SVG"}
+```pikchr {alt="Seven fence languages feeding one build step that produces SVG"}
 down
-box "pikchr · gnuplot · graphviz" "smiles · smarts · spice" fit
+box "pikchr · gnuplot · graphviz" "smiles · smarts · spice · onnx" fit
 arrow 0.3
 box "npm run diagrams" fit
 arrow 0.3

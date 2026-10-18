@@ -4,10 +4,11 @@
 // the site's dependencies and resolve from its node_modules.
 //
 // Contract with layouts/partials/diagram.html (the hash handshake): a fence's SVG is written to
-// <out>/<fence language>/<key>.svg, where key = sha256(<page folder> "\n" <dialect> "\n" <body>).
+// <out>/<fence language>/<key>.svg, where key = sha256(<page folder> "\n" <attribute> "\n" <body>).
 // - page folder is Hugo's .Page.File.Dir: the Markdown file's folder relative to the content
 //   directory, `/`-separated, with a trailing `/`, and empty for a file directly in it.
-// - dialect is the fence's `dialect` attribute as written, for spice fences only; else empty.
+// - attribute is the fence's drawing attribute as written — `dialect` on spice, `direction` on
+//   onnx (ADR 0008) — and empty for every other language or when the fence has none.
 // - body is exactly what Hugo hands the hook as .Inner — the fence content with the single
 //   trailing newline removed and \n line endings.
 //
@@ -29,7 +30,8 @@ const KEEP_GOING = args.includes('--keep-going');
 /**
  * One entry per fence language: how to start its library's runtime, and how to turn a fence
  * into that library's render input. `reader` is the Markdown file's file reader, made on demand.
- * `runtime` names the runtime to share when two fence languages use one library.
+ * `runtime` names the runtime to share when two fence languages use one library. `attribute` names
+ * the language's drawing attribute: read from the fence as written, it is part of the key.
  */
 const RENDERERS = {
   pikchr: {
@@ -64,8 +66,16 @@ const RENDERERS = {
     input: async (fence, reader) =>
       (await import('@reonarudo/spice-renderer')).prepare(fence.source, {
         reader: await reader('spice'),
-        dialect: fence.dialect || 'ngspice',
+        dialect: fence.attribute || 'ngspice',
       }),
+    attribute: 'dialect',
+  },
+  onnx: {
+    start: async () => (await import('@reonarudo/onnx-renderer')).createRuntime(),
+    // The direction attribute as written; absent means down, and the library refuses anything
+    // but `down` or `right`.
+    input: async (fence) => ({ source: fence.source, ...(fence.hasAttribute && { direction: fence.attribute }) }),
+    attribute: 'direction',
   },
 };
 
@@ -80,12 +90,12 @@ function markdownFiles(dir) {
   return out;
 }
 
-/** The `dialect` attribute from an info string's trailing `{…}` block, as written. */
-function dialectOf(info) {
+/** The named attribute from an info string's trailing `{…}` block, as written; undefined if absent. */
+function attributeOf(info, name) {
   const block = /\{(.*)\}\s*$/.exec(info);
-  if (!block) return '';
-  const attr = /(?:^|\s)dialect\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s}]+))/.exec(block[1]);
-  return attr ? (attr[1] ?? attr[2] ?? attr[3]) : '';
+  if (!block) return undefined;
+  const attr = new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s}]+))`).exec(block[1]);
+  return attr ? (attr[1] ?? attr[2] ?? attr[3]) : undefined;
 }
 
 /**
@@ -110,7 +120,15 @@ function fences(markdown) {
       body.push(lines[i2].startsWith(indent) ? lines[i2].slice(indent.length) : lines[i2].replace(/^ +/, ''));
     }
     const lang = /^[^\s{]*/.exec(info.trim())[0];
-    found.push({ lang, dialect: lang === 'spice' ? dialectOf(info) : '', source: body.join('\n'), line: i + 1 });
+    const name = RENDERERS[lang]?.attribute;
+    const attribute = name ? attributeOf(info, name) : undefined;
+    found.push({
+      lang,
+      attribute: attribute ?? '',
+      hasAttribute: attribute !== undefined,
+      source: body.join('\n'),
+      line: i + 1,
+    });
     i = i2;
   }
   return found;
@@ -164,7 +182,7 @@ try {
       switch (result.status) {
         case 'success': {
           for (const note of result.notes) console.warn(`render-diagrams: warning: ${where()}: ${note}`);
-          const key = createHash('sha256').update(`${folder}\n${fence.dialect}\n${fence.source}`).digest('hex');
+          const key = createHash('sha256').update(`${folder}\n${fence.attribute}\n${fence.source}`).digest('hex');
           mkdirSync(join(OUT, fence.lang), { recursive: true });
           writeFileSync(join(OUT, fence.lang, `${key}.svg`), result.output);
           rendered++;
